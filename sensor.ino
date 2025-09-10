@@ -2,27 +2,25 @@
 #include "WiFi.h"
 #include <HTTPClient.h>
 
-#define DHTPIN 4     
-#define DHTTYPE DHT22 
+#define DHTPIN 4      
+#define DHTTYPE DHT22  
 
 DHT dht(DHTPIN, DHTTYPE);
 
+// String sensorCode = "SENSOR_A1";  // ESP32 số 1 -> SENSOR_A1
+// String sensorCode = "SENSOR_A2";  // ESP32 số 2 -> SENSOR_A2
+String sensorCode = "SENSOR_A3";  // ESP32 số 3 -> SENSOR_A3
+
 const char* ssid = "Chuan thao";
 const char* password = "12345678";
-const char* serverName = "http://192.168.1.14/Graduation-project/admin/iot/api/iot-sensor.php";
-
-// IPAddress local_ip(192,168,1,11);
-// IPAddress gateway(192,168,1,1);
-// IPAddress subnet(255,255,255,0);
+const char* serverName = "http://192.168.1.8/Graduation-project/admin/iot/api/iot-sensor.php";
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   dht.begin();
 
-  // WiFi.config(local_ip, gateway, subnet);
   WiFi.begin(ssid, password);
-
-  while (WiFi.status() != WL_CONNECTED){
+  while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
@@ -32,7 +30,9 @@ void setup() {
 }
 
 void loop() {
-  delay(5000);
+  // delay(120000);
+  delay(5000);  
+
   float h = dht.readHumidity();
   float t = dht.readTemperature();
 
@@ -41,35 +41,29 @@ void loop() {
     return;
   }
 
-  Serial.print("Độ ẩm: ");
-  Serial.print(h);
-  Serial.print("%  Nhiệt độ: ");
-  Serial.print(t);
-  Serial.print("°C ");
+  Serial.printf("%s -> Nhiệt độ: %.2f°C, Độ ẩm: %.2f%%\n", sensorCode.c_str(), t, h);
 
-  if(WiFi.status() == WL_CONNECTED){
+  if (WiFi.status() == WL_CONNECTED) {
     HTTPClient http;
+    http.begin(serverName);
+    http.addHeader("Content-Type", "application/json");
 
     String jsonData = "{";
-    jsonData += "\"sensor_code\":\"SENSOR_A1\",";
+    jsonData += "\"sensor_code\":\"" + sensorCode + "\",";
     jsonData += "\"temperature\":" + String(t) + ",";
     jsonData += "\"humidity\":" + String(h);
     jsonData += "}";
 
-    http.begin(serverName);
-    http.addHeader("Content-Type", "application/json");
-
     int httpResponseCode = http.POST(jsonData);
 
-    if(httpResponseCode > 0){
+    if (httpResponseCode > 0) {
       String response = http.getString();
-      Serial.println("Server response: " + response);
-    }else {
-      Serial.print("Lỗi gửi dữ liệu! Mã lỗi: ");
+      Serial.println("[" + sensorCode + "] Server response: " + response);
+    } else {
+      Serial.print("[" + sensorCode + "] Lỗi gửi dữ liệu! Mã lỗi: ");
       Serial.println(httpResponseCode);
     }
 
     http.end();
   }
 }
-
